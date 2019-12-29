@@ -30,11 +30,21 @@ import static org.apache.dubbo.common.constants.CommonConstants.LOCALHOST_VALUE;
 
 /**
  * InjvmInvoker
+ *
+ * 实现 AbstractInvoker 抽象类，Injvm Invoker 实现类
  */
 class InjvmInvoker<T> extends AbstractInvoker<T> {
 
+    /**
+     * 服务键
+     */
     private final String key;
 
+    /**
+     * Exporter 集合
+     *
+     * 实际就是 {@link org.apache.dubbo.rpc.protocol.AbstractProtocol#exporterMap}
+     */
     private final Map<String, Exporter<?>> exporterMap;
 
     InjvmInvoker(Class<T> type, URL url, String key, Map<String, Exporter<?>> exporterMap) {
@@ -43,6 +53,10 @@ class InjvmInvoker<T> extends AbstractInvoker<T> {
         this.exporterMap = exporterMap;
     }
 
+    /**
+     * 开启启动时检查时，调用本方法，判断该 invoker 对象是否有对应的 Exporter。若灭有，说明依赖服务不存在，检查不通过
+     * @return
+     */
     @Override
     public boolean isAvailable() {
         InjvmExporter<?> exporter = (InjvmExporter<?>) exporterMap.get(key);

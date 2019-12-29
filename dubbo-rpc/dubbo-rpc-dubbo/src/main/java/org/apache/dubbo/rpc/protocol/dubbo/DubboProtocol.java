@@ -87,6 +87,8 @@ import static org.apache.dubbo.rpc.protocol.dubbo.Constants.DEFAULT_SHARE_CONNEC
 
 /**
  * dubbo protocol support.
+ *
+ * 实现 AbstractProtocol 抽象类，Dubbo 协议实现类
  */
 public class DubboProtocol extends AbstractProtocol {
 
@@ -97,10 +99,15 @@ public class DubboProtocol extends AbstractProtocol {
     private static DubboProtocol INSTANCE;
 
     /**
+     * 通信服务器集合
+     *
      * <host:port,Exchanger>
+     *
      */
     private final Map<String, ExchangeServer> serverMap = new ConcurrentHashMap<>();
     /**
+     * 通信客户端集合
+     *
      * <host:port,Exchanger>
      */
     private final Map<String, List<ReferenceCountExchangeClient>> referenceClientMap = new ConcurrentHashMap<>();
@@ -282,6 +289,7 @@ public class DubboProtocol extends AbstractProtocol {
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
         URL url = invoker.getUrl();
 
+        // 创建 DubboExporter 对象，并添加到 exporterMap
         // export service.
         String key = serviceKey(url);
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
@@ -302,8 +310,9 @@ public class DubboProtocol extends AbstractProtocol {
                 stubServiceMethodsMap.put(url.getServiceKey(), stubServiceMethods);
             }
         }
-
+        // 启动通信服务器
         openServer(url);
+        //初始化 序列化优化器
         optimizeSerialization(url);
 
         return exporter;
@@ -311,20 +320,25 @@ public class DubboProtocol extends AbstractProtocol {
 
     private void openServer(URL url) {
         // find server.
+        // 获得服务器地址
         String key = url.getAddress();
         //client can export a service which's only for server to invoke
+        // 是否暴露一个仅当前 jvm 可调用的服务
         boolean isServer = url.getParameter(IS_SERVER_KEY, true);
         if (isServer) {
+            // 根据 key（通信服务器地址） 在通信服务器集合中获取通信服务器
             ExchangeServer server = serverMap.get(key);
             if (server == null) {
                 synchronized (this) {
                     server = serverMap.get(key);
                     if (server == null) {
+                        // 不存在，则创建服务器
                         serverMap.put(key, createServer(url));
                     }
                 }
             } else {
                 // server supports reset, use together with override
+                // 服务器已存在（当多个服务共用同一个 Protocol 时），重置服务器的属性
                 server.reset(url);
             }
         }
@@ -333,17 +347,22 @@ public class DubboProtocol extends AbstractProtocol {
     private ExchangeServer createServer(URL url) {
         url = URLBuilder.from(url)
                 // send readonly event when server closes, it's enabled by default
+                // 默认开启服务关闭时，发送 readonly 事件
                 .addParameterIfAbsent(CHANNEL_READONLYEVENT_SENT_KEY, Boolean.TRUE.toString())
                 // enable heartbeat by default
+                // 默认将开启心跳
                 .addParameterIfAbsent(HEARTBEAT_KEY, String.valueOf(DEFAULT_HEARTBEAT))
+                // 设置编解码器为 dubbo
                 .addParameter(CODEC_KEY, DubboCodec.NAME)
                 .build();
+        // 检查 Server 的 Dubbo SPI 拓展是否存在
         String str = url.getParameter(SERVER_KEY, DEFAULT_REMOTING_SERVER);
 
         if (str != null && str.length() > 0 && !ExtensionLoader.getExtensionLoader(Transporter.class).hasExtension(str)) {
             throw new RpcException("Unsupported server type: " + str + ", url: " + url);
         }
 
+        // 启动服务器
         ExchangeServer server;
         try {
             server = Exchangers.bind(url, requestHandler);
@@ -351,6 +370,7 @@ public class DubboProtocol extends AbstractProtocol {
             throw new RpcException("Fail to start server(url: " + url + ") " + e.getMessage(), e);
         }
 
+        // 校验 client 的 dubbo SPI 拓展是否存在
         str = url.getParameter(CLIENT_KEY);
         if (str != null && str.length() > 0) {
             Set<String> supportedTypes = ExtensionLoader.getExtensionLoader(Transporter.class).getSupportedExtensions();

@@ -192,7 +192,7 @@ class URL implements Serializable {
     /**
      * Parse url string
      *
-     * @param url URL string
+     * @param url URL string     xxxxx?aa=aa1&bb=bb2&cc=cc3
      * @return URL instance
      * @see URL
      */
@@ -207,14 +207,18 @@ class URL implements Serializable {
         int port = 0;
         String path = null;
         Map<String, String> parameters = null;
+        // 找到 url 主体地址信息和参数的分隔符的位置
         int i = url.indexOf("?"); // separator between body and parameters
         if (i >= 0) {
+            // 把 url 中 ？ 后面的内容按 & 分割
             String[] parts = url.substring(i + 1).split("&");
             parameters = new HashMap<>();
             for (String part : parts) {
                 part = part.trim();
                 if (part.length() > 0) {
+                    // 获取 part 中 = 的位置
                     int j = part.indexOf('=');
+                    // part 中存在 =，则 = 前面的内容为 key，后面的内容为 value
                     if (j >= 0) {
                         parameters.put(part.substring(0, j), part.substring(j + 1));
                     } else {
@@ -222,14 +226,19 @@ class URL implements Serializable {
                     }
                 }
             }
+            // 处理完 url 的参数部分，重新赋值 url 为 ? 前面的内容
             url = url.substring(0, i);
         }
+        // url 中是否存在 ://
         i = url.indexOf("://");
         if (i >= 0) {
+            // url 中存在 :// 且以 :// 开头，抛出异常，并提示 url 缺失协议部分
             if (i == 0) {
                 throw new IllegalStateException("url missing protocol: \"" + url + "\"");
             }
+            // 获取 url 中的协议部分
             protocol = url.substring(0, i);
+            // url 重新赋值，截取掉 :// 和它前面的内容
             url = url.substring(i + 3);
         } else {
             // case: file:/path/to/file.txt
@@ -242,20 +251,28 @@ class URL implements Serializable {
                 url = url.substring(i + 1);
             }
         }
-
+        // 剩下的 url 中是否存在 /
         i = url.indexOf("/");
         if (i >= 0) {
+            //存在，获取 path，即 / 后面的内容
             path = url.substring(i + 1);
+            // 重新截取 url 为开头到 / 的内容
             url = url.substring(0, i);
         }
+        // url 中最后一个 @ 的位置
         i = url.lastIndexOf("@");
         if (i >= 0) {
+            // 截取 url 中 0，i 的内容
             username = url.substring(0, i);
+            // 截取的内容中是否包含 :
             int j = username.indexOf(":");
             if (j >= 0) {
+                // : 后面的内容为密码
                 password = username.substring(j + 1);
+                // : 前面的内容是 userName
                 username = username.substring(0, j);
             }
+            // 截取 i 后面的内容为 url
             url = url.substring(i + 1);
         }
         i = url.lastIndexOf(":");
@@ -273,6 +290,7 @@ class URL implements Serializable {
         if (url.length() > 0) {
             host = url;
         }
+        // 根据上面截取的内容构造一个新的 url
         return new URL(protocol, username, password, host, port, path, parameters);
     }
 

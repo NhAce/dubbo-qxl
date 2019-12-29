@@ -378,12 +378,16 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     /**
      *
      * Load the monitor config from the system properties and conversation it to {@link URL}
+     * 加载监控中心 url
      *
-     * @param registryURL
-     * @return
+     * @param registryURL 注册中心 url
+     * @return 监控中心 url
+     *
      */
     protected URL loadMonitor(URL registryURL) {
+        // 把配置的属性加载到 MonitorConfig 对象中，
         checkMonitor();
+        // 添加 `interface` `dubbo` `timestamp` `pid` 到 `map` 集合中
         Map<String, String> map = new HashMap<String, String>();
         map.put(INTERFACE_KEY, MonitorService.class.getName());
         appendRuntimeParameters(map);
@@ -396,14 +400,18 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                     DUBBO_IP_TO_REGISTRY + ", value:" + hostToRegistry);
         }
         map.put(REGISTER_IP_KEY, hostToRegistry);
+        // 将 MonitorConfig ，添加到 `map` 集合中。
         appendParameters(map, monitor);
+        // 获得地址
         appendParameters(map, application);
         String address = monitor.getAddress();
         String sysaddress = System.getProperty("dubbo.monitor.address");
         if (sysaddress != null && sysaddress.length() > 0) {
             address = sysaddress;
         }
+        // 直连监控中心服务器地址
         if (ConfigUtils.isNotEmpty(address)) {
+            // 若不存在 `protocol` 参数，默认 "dubbo" 添加到 `map` 集合中。
             if (!map.containsKey(PROTOCOL_KEY)) {
                 if (getExtensionLoader(MonitorFactory.class).hasExtension(LOGSTAT_PROTOCOL)) {
                     map.put(PROTOCOL_KEY, LOGSTAT_PROTOCOL);
@@ -411,8 +419,10 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                     map.put(PROTOCOL_KEY, DUBBO_PROTOCOL);
                 }
             }
+            // 解析地址，创建 Dubbo URL 对象。
             return UrlUtils.parseURL(address, map);
         } else if (REGISTRY_PROTOCOL.equals(monitor.getProtocol()) && registryURL != null) {
+            // 从注册中心发现监控中心地址
             return URLBuilder.from(registryURL)
                     .setProtocol(DUBBO_PROTOCOL)
                     .addParameter(PROTOCOL_KEY, REGISTRY_PROTOCOL)

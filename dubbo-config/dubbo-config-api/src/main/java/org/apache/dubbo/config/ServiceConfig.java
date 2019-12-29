@@ -490,6 +490,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
+    /**
+     * 暴露 url
+     */
     private void doExportUrls() {
         //根据所有 <dubbo: registry> 标签获取的 url
         List<URL> registryURLs = loadRegistries(true);
@@ -505,6 +508,11 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         }
     }
 
+    /**
+     * 基于单个协议，暴露服务
+     * @param protocolConfig 协议配置对象
+     * @param registryURLs 注册中心列表
+     */
     private void doExportUrlsFor1Protocol(ProtocolConfig protocolConfig, List<URL> registryURLs) {
         String name = protocolConfig.getName();
         //协议名称，如果为空，默认为 dubbo
@@ -646,6 +654,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 exportLocal(url);
             }
             // export to remote if the config is not local (export to local only when config is local)
+            // scope 不是 local，服务暴露到远程
             if (!SCOPE_LOCAL.equalsIgnoreCase(scope)) {
                 if (!isOnlyInJvm() && logger.isInfoEnabled()) {
                     logger.info("Export dubbo service " + interfaceClass.getName() + " to url " + url);
@@ -658,7 +667,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                         if (LOCAL_PROTOCOL.equalsIgnoreCase(url.getProtocol())) {
                             continue;
                         }
-                        // 如果 url 的 parameter 属性中没有 dynamic ，则取 registryURL 中的 dynamic属性
+                        // "dynamic": 服务是否动态注册，如果设为 false，注册后显示为 disable 状态，需人工启用；并且服务停止时，也不会自动取消注册，需人工禁用
                         url = url.addParameterIfAbsent(DYNAMIC_KEY, registryURL.getParameter(DYNAMIC_KEY));
                         // 加载监视器链接
                         URL monitorUrl = loadMonitor(registryURL);
@@ -677,15 +686,20 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                             registryURL = registryURL.addParameter(PROXY_KEY, proxy);
                         }
 
-                        // 使用 dubbo spi 动态生成的拓展类的 getInvoker 方法获取 invoker
+                        // 使用 ProxyFactory 创建 Invoker 对象
                         Invoker<?> invoker = PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(EXPORT_KEY, url.toFullString()));
                         // 对 invoker 进行一层包装
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
+                        // 使用 Protocol 暴露 Invoker
+                        // 默认底层调用链 Protocol$Adaptive => ProtocolFilterWrapper => ProtocolListenerWrapper => RegistryProtocol
+                        //                 => Protocol$Adaptive => ProtocolFilterWrapper => ProtocolListenerWrapper => DubboProtocol
                         Exporter<?> exporter = protocol.export(wrapperInvoker);
+                        // 添加到 expoters
                         exporters.add(exporter);
                     }
-                } else {
+                } else {// 服务消费者直连服务提供者
+
                     Invoker<?> invoker = PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, url);
                     DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 

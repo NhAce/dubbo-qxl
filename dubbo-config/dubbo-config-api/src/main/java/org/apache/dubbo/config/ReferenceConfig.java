@@ -97,6 +97,8 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
      * <p>
      * Actually，when the {@link ExtensionLoader} init the {@link Protocol} instants,it will automatically wraps two
      * layers, and eventually will get a <b>ProtocolFilterWrapper</b> or <b>ProtocolListenerWrapper</b>
+     *
+     * 自适应 Protocol 实现对象
      */
     private static final Protocol REF_PROTOCOL = ExtensionLoader.getExtensionLoader(Protocol.class).getAdaptiveExtension();
 
@@ -109,6 +111,8 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
     /**
      * A {@link ProxyFactory} implementation that will generate a reference service's proxy,the JavassistProxyFactory is
      * its default implementation
+     *
+     * 自适应 ProxyFactory 实现对象，默认 JavassistProxyFactory
      */
     private static final ProxyFactory PROXY_FACTORY = ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();
 
@@ -134,6 +138,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
     /**
      * The url for peer-to-peer invocation
+     * 直连服务提供者的地址
      */
     private String url;
 
@@ -369,7 +374,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (shouldJvmRefer(map)) {
             // 生成本地引用 URL，协议为 injvm
             URL url = new URL(LOCAL_PROTOCOL, LOCALHOST_VALUE, 0, interfaceClass.getName()).addParameters(map);
-            // 调用 refer 方法构建 InjvmInvoker 实例
+            // 调用 refer 方法构建 InjvmProtocol 实例，调用顺序是：Protocol$Adaptive => ProtocolFilterWrapper => ProtocolListenerWrapper => InjvmProtocol
             invoker = REF_PROTOCOL.refer(interfaceClass, url);
             if (logger.isInfoEnabled()) {
                 logger.info("Using injvm service " + interfaceClass.getName());
@@ -481,10 +486,12 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
      */
     protected boolean shouldJvmRefer(Map<String, String> map) {
         URL tmpUrl = new URL("temp", "localhost", 0, map);
+        //是否本地引用
         boolean isJvmRefer;
+        //isInJvm 返回 null，不通过该属性判断
         if (isInjvm() == null) {
             // if a url is specified, don't do local reference
-            // url 配置被指定，则不做本地引用
+            // url 配置被指定，说明使用了直连服务提供者的功能，故不做本地引用
             if (url != null && url.length() > 0) {
                 isJvmRefer = false;
             } else {

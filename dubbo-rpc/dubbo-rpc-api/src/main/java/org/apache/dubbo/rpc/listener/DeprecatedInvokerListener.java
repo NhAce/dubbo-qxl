@@ -26,6 +26,8 @@ import static org.apache.dubbo.rpc.Constants.DEPRECATED_KEY;
 
 /**
  * DeprecatedProtocolFilter
+ *
+ * 实现 InvokerListenerAdapter 抽象类 ，引用废弃的服务时，打印错误日志提醒
  */
 @Activate(DEPRECATED_KEY)
 public class DeprecatedInvokerListener extends InvokerListenerAdapter {

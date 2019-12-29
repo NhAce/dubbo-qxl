@@ -71,9 +71,13 @@ public class ProtocolListenerWrapper implements Protocol {
 
     @Override
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
+        // invoker 中 url 的 protocol 属性等于 registry，直接引用
         if (REGISTRY_PROTOCOL.equals(url.getProtocol())) {
             return protocol.refer(type, url);
         }
+        // protocol.refer(type, url) 引用服务
+        // 获得 InvokerListener 数组
+        // 创建 ListenerInvokerWrapper 对象
         return new ListenerInvokerWrapper<T>(protocol.refer(type, url),
                 Collections.unmodifiableList(
                         ExtensionLoader.getExtensionLoader(InvokerListener.class)
