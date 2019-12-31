@@ -35,13 +35,21 @@ import static org.apache.dubbo.rpc.protocol.dubbo.Constants.LAZY_CONNECT_INITIAL
 
 /**
  * dubbo protocol support class.
+ *
+ * 实现 ExchangeClient 接口，支持指向计数的信息交换客户端实现类。
  */
 @SuppressWarnings("deprecation")
 final class ReferenceCountExchangeClient implements ExchangeClient {
 
     private final URL url;
+    /**
+     * 引用数量
+     */
     private final AtomicInteger referenceCount = new AtomicInteger(0);
 
+    /**
+     * 客户端
+     */
     private ExchangeClient client;
 
     public ReferenceCountExchangeClient(ExchangeClient client) {
@@ -145,6 +153,7 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
 
     @Override
     public void close(int timeout) {
+        // 引用数 <= 0 的时候，关闭
         if (referenceCount.decrementAndGet() <= 0) {
             if (timeout == 0) {
                 client.close();
@@ -152,7 +161,7 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
             } else {
                 client.close(timeout);
             }
-
+            // 替换 client 为 LazyConnectExchangeClient 对象。
             replaceWithLazyClient();
         }
     }
@@ -181,6 +190,8 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
 
         /**
          * the order of judgment in the if statement cannot be changed.
+         *
+         * 当 client 不是 LazyConnectExchangeClient 类型且 client 还没关闭，创建一个新的 LazyConnectExchangeClient
          */
         if (!(client instanceof LazyConnectExchangeClient) || client.isClosed()) {
             client = new LazyConnectExchangeClient(lazyUrl, client.getExchangeHandler());

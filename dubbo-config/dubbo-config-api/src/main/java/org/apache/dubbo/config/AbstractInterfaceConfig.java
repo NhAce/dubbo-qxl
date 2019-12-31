@@ -193,6 +193,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
      * Check whether the registry config is exists, and then conversion it to {@link RegistryConfig}
      */
     protected void checkRegistry() {
+        //
         loadRegistriesFromBackwardConfig();
 
         convertRegistryIdsToRegistries();

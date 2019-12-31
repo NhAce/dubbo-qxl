@@ -393,11 +393,11 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                             // 设置接口全限定名为 url 路径
                             url = url.setPath(interfaceName);
                         }
-                        // 检测 url 协议是否为 registry，若是，表明用户想使用指定的注册中心
+                        // 注册中心的地址
                         if (REGISTRY_PROTOCOL.equals(url.getProtocol())) {
                             // 将 map 转换为查询字符串，并作为 refer 参数的值添加到 url 中
                             urls.add(url.addParameterAndEncoded(REFER_KEY, StringUtils.toQueryString(map)));
-                        } else {
+                        } else {//服务提供者的地址
                             // 合并 url，移除服务提供者的一些配置（这些配置来源于用户配置的 url 属性），
                             // 比如线程池相关配置。并保留服务提供者的部分配置，比如版本，group，时间戳等
                             // 最后将合并后的配置设置为 url 查询字符串中。
@@ -407,13 +407,17 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 }
             } else { // assemble URL from register center's configuration
                 // if protocols not injvm checkRegistry
+                // protocol 不是 injvm 时
                 if (!LOCAL_PROTOCOL.equalsIgnoreCase(getProtocol())){
+
                     checkRegistry();
                     // 加载注册中心 url
                     List<URL> us = loadRegistries(false);
                     if (CollectionUtils.isNotEmpty(us)) {
                         for (URL u : us) {
+                            // 加载监控中心 url
                             URL monitorUrl = loadMonitor(u);
+                            // map 中加入监控中心的配置
                             if (monitorUrl != null) {
                                 map.put(MONITOR_KEY, URL.encode(monitorUrl.toFullString()));
                             }
@@ -443,14 +447,14 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                         registryURL = url; // use last registry url
                     }
                 }
-                if (registryURL != null) { // registry url is available
+                if (registryURL != null) { // registry url is available，有注册中心
                     // use RegistryAwareCluster only when register's CLUSTER is available
                     // 如果注册中心链接不为空，则将使用 AvailableCluster
                     URL u = registryURL.addParameter(CLUSTER_KEY, RegistryAwareCluster.NAME);
                     // The invoker wrap relation would be: RegistryAwareClusterInvoker(StaticDirectory) -> FailoverClusterInvoker(RegistryDirectory, will execute route) -> Invoker
                     // 创建 StaticDirectory 实例，并由 Cluster 对多个 Invoker 进行合并
                     invoker = CLUSTER.join(new StaticDirectory(u, invokers));
-                } else { // not a registry url, must be direct invoke.
+                } else { // not a registry url, must be direct invoke.无注册中心
                     invoker = CLUSTER.join(new StaticDirectory(invokers));
                 }
             }
