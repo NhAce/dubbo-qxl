@@ -31,18 +31,47 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executor;
 
+/**
+ * Zookeeper 客户端抽象类，实现通用逻辑
+ *
+ * @param <TargetDataListener>
+ * @param <TargetChildListener>
+ */
 public abstract class AbstractZookeeperClient<TargetDataListener, TargetChildListener> implements ZookeeperClient {
 
     protected static final Logger logger = LoggerFactory.getLogger(AbstractZookeeperClient.class);
 
+    /**
+     * 注册中心 url
+     */
     private final URL url;
 
+    /**
+     * StateListener 集合
+     */
     private final Set<StateListener> stateListeners = new CopyOnWriteArraySet<StateListener>();
 
+    /**
+     * ChildListener 集合
+     *
+     * key1(String) ：节点路径
+     * key2(ChildListener)：ChildListener 对象
+     * value：监听器具体对象。不同 Zookeeper 客户端，实现会不同
+     */
     private final ConcurrentMap<String, ConcurrentMap<ChildListener, TargetChildListener>> childListeners = new ConcurrentHashMap<String, ConcurrentMap<ChildListener, TargetChildListener>>();
 
+    /**
+     * DataListener 集合
+     *
+     * key1(String) ：节点路径
+     * key2(DataListener)：DataListener 对象
+     * value：监听器具体对象。不同 Zookeeper 客户端，实现会不同
+     */
     private final ConcurrentMap<String, ConcurrentMap<DataListener, TargetDataListener>> listeners = new ConcurrentHashMap<String, ConcurrentMap<DataListener, TargetDataListener>>();
 
+    /**
+     * 是否关闭
+     */
     private volatile boolean closed = false;
 
     public AbstractZookeeperClient(URL url) {
@@ -56,18 +85,25 @@ public abstract class AbstractZookeeperClient<TargetDataListener, TargetChildLis
 
     @Override
     public void create(String path, boolean ephemeral) {
+        // 非临时节点
         if (!ephemeral) {
+            // 判断 path 是否存在，已存在则直接返回
             if (checkExists(path)) {
                 return;
             }
         }
+        // 若 path 中存在 /，循环创建父路径
+        // 例：path = a/b/c/d，其节点创建顺序为：a, a/b, a/b/c, a/b/c/d
         int i = path.lastIndexOf('/');
         if (i > 0) {
             create(path.substring(0, i), false);
         }
+
         if (ephemeral) {
+            // 创建临时节点
             createEphemeral(path);
         } else {
+            // 创建持久节点
             createPersistent(path);
         }
     }
@@ -82,22 +118,32 @@ public abstract class AbstractZookeeperClient<TargetDataListener, TargetChildLis
         stateListeners.remove(listener);
     }
 
+    /**
+     * 获得 StateListener 集合
+     * @return
+     */
     public Set<StateListener> getSessionListeners() {
         return stateListeners;
     }
 
     @Override
     public List<String> addChildListener(String path, final ChildListener listener) {
+        // 获得目标路径 path 下的所有 ChildListener 集合
         ConcurrentMap<ChildListener, TargetChildListener> listeners = childListeners.get(path);
         if (listeners == null) {
+            // 初始化 path 下的监听器集合
             childListeners.putIfAbsent(path, new ConcurrentHashMap<ChildListener, TargetChildListener>());
             listeners = childListeners.get(path);
         }
+        // 判断集合中是否已经存在 listener
         TargetChildListener targetListener = listeners.get(listener);
+        // listener 对应的监听器还不存在
         if (targetListener == null) {
+            // 基于 listener 创建真正的监听器并保存映射 listener -> 真.监听器 的映射
             listeners.putIfAbsent(listener, createTargetChildListener(path, listener));
             targetListener = listeners.get(listener);
         }
+        // 向 zookeeper 发起真正的订阅
         return addTargetChildListener(path, targetListener);
     }
 
@@ -127,6 +173,7 @@ public abstract class AbstractZookeeperClient<TargetDataListener, TargetChildLis
         if (dataListenerMap != null) {
             TargetDataListener targetListener = dataListenerMap.remove(listener);
             if(targetListener != null){
+                // 向 zookeeper 发起取消订阅
                 removeTargetDataListener(path, targetListener);
             }
         }
@@ -138,17 +185,25 @@ public abstract class AbstractZookeeperClient<TargetDataListener, TargetChildLis
         if (listeners != null) {
             TargetChildListener targetListener = listeners.remove(listener);
             if (targetListener != null) {
+                //
                 removeTargetChildListener(path, targetListener);
             }
         }
     }
 
+    /**
+     * 回调方法，调用当前所有 {@link stateListeners} 的 stateChanged 方法
+     * @param state 状态
+     */
     protected void stateChanged(int state) {
         for (StateListener sessionListener : getSessionListeners()) {
             sessionListener.stateChanged(state);
         }
     }
 
+    /**
+     * 关闭 zookeeper 连接
+     */
     @Override
     public void close() {
         if (closed) {
