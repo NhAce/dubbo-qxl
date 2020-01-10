@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A {@link Timer} optimized for approximated I/O timeout scheduling.
+ * 一个优化的近似 I/O 超时调度的定时器
  *
  * <h3>Tick Duration</h3>
  * <p>
@@ -45,12 +46,20 @@ import java.util.concurrent.atomic.AtomicLong;
  * {@link TimerTask} on time.  {@link HashedWheelTimer}, on every tick, will
  * check if there are any {@link TimerTask}s behind the schedule and execute
  * them.
+ *
+ * 如同上面描述的'近似'，这个定时器不会准时去执行调度任务。每次 tick 都会检查当前节点是否
+ * 有调度任务存在，并执行他们
+ *
  * <p>
  * You can increase or decrease the accuracy of the execution timing by
  * specifying smaller or larger tick duration in the constructor.  In most
  * network applications, I/O timeout does not need to be accurate.  Therefore,
  * the default tick duration is 100 milliseconds and you will not need to try
  * different configurations in most cases.
+ *
+ * 通过在构造方法中指定更小或更大的 tick duration，我们可以提高或降低执行时间的准确性。
+ * 在大多数网络应用中，I/O 定时不需要太精确。因此，默认的 tick duration 是 100ms，而且在
+ * 大多数场景下，我们也不需要选择别的配置
  *
  * <h3>Ticks per Wheel (Wheel Size)</h3>
  * <p>
@@ -60,12 +69,20 @@ import java.util.concurrent.atomic.AtomicLong;
  * (i.e. the size of the wheel) is 512.  You could specify a larger value
  * if you are going to schedule a lot of timeouts.
  *
+ * {@link HashedWheelTimer} 维持着一个叫 wheel 的数据结构。简单来说，可以把一个 wheel
+ * 看成一个 hash table，由 {@link TimerTask} 组成，whose hash function is 'dead line of the task'
+ * 每个 wheel 默认的长度是 512。如果需要处理大量的超时任务，我们可以指定一个更大的值
+ *
  * <h3>Do not create many instances.</h3>
+ * 不需要很多的实例
  * <p>
  * {@link HashedWheelTimer} creates a new thread whenever it is instantiated and
  * started.  Therefore, you should make sure to create only one instance and
  * share it across your application.  One of the common mistakes, that makes
  * your application unresponsive, is to create a new instance for every connection.
+ *
+ * {@link HashedWheelTimer} 只在初始化的时候创建一个新线程并开启。因此，我们要保证只创建了
+ * 一个实例并且让这个实例在整个应用中通用。让你的应用变慢的最常见的错误就是为每个链接创建一个实例
  *
  * <h3>Implementation Details</h3>
  * <p>
@@ -76,6 +93,12 @@ import java.util.concurrent.atomic.AtomicLong;
  * and Hierarchical Timing Wheels: data structures to efficiently implement a
  * timer facility'</a>.  More comprehensive slides are located
  * <a href="http://www.cse.wustl.edu/~cdgill/courses/cs6874/TimingWheels.ppt">here</a>.
+ *
+ * 时间轮
+ *
+ * 1. 时间轮由 HashedWheelBucket 数组构成，每个 HashedWheelBucket 维持一个双链表，双链表中的元素是 HashedWheelTimeout 类型
+ * 2. HashedWheelTimeout 包含TimerTask、deadline等属性
+ * 3. HashedWheelTimer只有一个工作线程，即Worker线程，worker开启后在当前tick内执行当前bucket中的task
  */
 public class HashedWheelTimer implements Timer {
 
@@ -86,17 +109,44 @@ public class HashedWheelTimer implements Timer {
 
     private static final Logger logger = LoggerFactory.getLogger(HashedWheelTimer.class);
 
+    /**
+     * 实例计数器
+     */
     private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger();
+    /**
+     * 实例是否过多
+     */
     private static final AtomicBoolean WARNED_TOO_MANY_INSTANCES = new AtomicBoolean();
+    /**
+     * 实例数量限制 64
+     */
     private static final int INSTANCE_COUNT_LIMIT = 64;
+    /**
+     * HashedWheelTimer.workState 原子更新器
+     */
     private static final AtomicIntegerFieldUpdater<HashedWheelTimer> WORKER_STATE_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(HashedWheelTimer.class, "workerState");
 
+    /**
+     * 工作任务
+     */
     private final Worker worker = new Worker();
+    /**
+     * 工作线程
+     */
     private final Thread workerThread;
 
+    /**
+     * 初始化
+     */
     private static final int WORKER_STATE_INIT = 0;
+    /**
+     * 已启动
+     */
     private static final int WORKER_STATE_STARTED = 1;
+    /**
+     * 已关闭
+     */
     private static final int WORKER_STATE_SHUTDOWN = 2;
 
     /**
@@ -105,7 +155,13 @@ public class HashedWheelTimer implements Timer {
     @SuppressWarnings({"unused", "FieldMayBeFinal"})
     private volatile int workerState;
 
+    /**
+     * 每次 tick 的持续时长
+     */
     private final long tickDuration;
+    /**
+     * HashedWheelBucket 数组构建成一个 wheel
+     */
     private final HashedWheelBucket[] wheel;
     private final int mask;
     private final CountDownLatch startTimeInitialized = new CountDownLatch(1);

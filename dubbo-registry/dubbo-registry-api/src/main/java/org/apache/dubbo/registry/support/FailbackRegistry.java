@@ -44,34 +44,73 @@ import static org.apache.dubbo.registry.Constants.REGISTRY_RETRY_PERIOD_KEY;
 
 /**
  * FailbackRegistry. (SPI, Prototype, ThreadSafe)
+ *
+ * 继承自 AbstractRegistry
+ *
  */
 public abstract class FailbackRegistry extends AbstractRegistry {
 
     /*  retry task map */
-
+    /**
+     * 重试任务映射表--注册
+     *
+     * key：url
+     * value：注册重试类
+     */
     private final ConcurrentMap<URL, FailedRegisteredTask> failedRegistered = new ConcurrentHashMap<URL, FailedRegisteredTask>();
 
+    /**
+     * 重试任务映射表--取消注册
+     *
+     * key：url
+     * value：取消注册重试类
+     */
     private final ConcurrentMap<URL, FailedUnregisteredTask> failedUnregistered = new ConcurrentHashMap<URL, FailedUnregisteredTask>();
 
+    /**
+     * 重试任务映射表--订阅
+     *
+     * key：holder（包含 url 和 listener 属性）
+     * value：订阅重试类
+     */
     private final ConcurrentMap<Holder, FailedSubscribedTask> failedSubscribed = new ConcurrentHashMap<Holder, FailedSubscribedTask>();
 
+    /**
+     * 重试任务映射表--取消订阅
+     *
+     * key：holder（包含 url 和 listener 属性）
+     * value：取消订阅重试类
+     */
     private final ConcurrentMap<Holder, FailedUnsubscribedTask> failedUnsubscribed = new ConcurrentHashMap<Holder, FailedUnsubscribedTask>();
 
+    /**
+     * 重试任务映射表--通知
+     *
+     * key：holder（包含 url 和 listener 属性）
+     * value：通知重试类
+     */
     private final ConcurrentMap<Holder, FailedNotifiedTask> failedNotified = new ConcurrentHashMap<Holder, FailedNotifiedTask>();
 
     /**
      * The time in milliseconds the retryExecutor will wait
+     *
+     * 重试执行器等待的时间，单位毫秒
      */
     private final int retryPeriod;
 
     // Timer for failure retry, regular check if there is a request for failure, and if there is, an unlimited retry
+    /**
+     * 失败重试定时器，定时检查是否有请求失败，若有，无限次重试
+     */
     private final HashedWheelTimer retryTimer;
 
     public FailbackRegistry(URL url) {
         super(url);
+        // 重试频率，单位毫秒
         this.retryPeriod = url.getParameter(REGISTRY_RETRY_PERIOD_KEY, DEFAULT_REGISTRY_RETRY_PERIOD);
 
         // since the retry task will not be very much. 128 ticks is enough.
+        // 创建失败重试定时器
         retryTimer = new HashedWheelTimer(new NamedThreadFactory("DubboRegistryRetryTimer", true), retryPeriod, TimeUnit.MILLISECONDS, 128);
     }
 
@@ -99,14 +138,18 @@ public abstract class FailbackRegistry extends AbstractRegistry {
     }
 
     private void addFailedRegistered(URL url) {
+        // failedRegistered 中已存在 url 的注册重试任务，直接返回
         FailedRegisteredTask oldOne = failedRegistered.get(url);
         if (oldOne != null) {
             return;
         }
+        // 为 url 新建一个注册重试任务
         FailedRegisteredTask newTask = new FailedRegisteredTask(url, this);
+        // 添加映射
         oldOne = failedRegistered.putIfAbsent(url, newTask);
         if (oldOne == null) {
             // never has a retry task. then start a new task for retry.
+            // 从未有过重试任务，则开启一个新的任务来重试
             retryTimer.newTimeout(newTask, retryPeriod, TimeUnit.MILLISECONDS);
         }
     }
@@ -226,21 +269,35 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         return failedNotified;
     }
 
+    /**
+     * 注册
+     *
+     * @param url  Registration information , is not allowed to be empty, e.g: dubbo://10.20.153.10/org.apache.dubbo.foo.BarService?version=1.0.0&application=kylin
+     */
     @Override
     public void register(URL url) {
+        // 调用父类 AbstractRegistry.register 方法
         super.register(url);
+        // 若该 url 存在对应的注册重试任务，取消该任务
         removeFailedRegistered(url);
+        // 若该 url 存在对应的取消注册重试任务，取消该任务
         removeFailedUnregistered(url);
         try {
             // Sending a registration request to the server side
+            // 向服务端发送注册请求
             doRegister(url);
         } catch (Exception e) {
             Throwable t = e;
 
             // If the startup detection is opened, the Exception is thrown directly.
+            // 获取 registryUrl 的 check 属性，未配置默认 true
+            // 获取 url 的 check 属性，未配置默认 true
+            // url 的 protocol 属性不是 consumer
+            // 以上 3 个条件都满足，说明需要校验，即需要直接抛出异常
             boolean check = getUrl().getParameter(Constants.CHECK_KEY, true)
                     && url.getParameter(Constants.CHECK_KEY, true)
                     && !CONSUMER_PROTOCOL.equals(url.getProtocol());
+            // 异常类型是否是 SkipFailbackWrapperException，是的话直接抛出异常
             boolean skipFailback = t instanceof SkipFailbackWrapperException;
             if (check || skipFailback) {
                 if (skipFailback) {
@@ -252,6 +309,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             }
 
             // Record a failed registration request to a failed list, retry regularly
+            // 把 url 增加到重试列表中
             addFailedRegistered(url);
         }
     }
