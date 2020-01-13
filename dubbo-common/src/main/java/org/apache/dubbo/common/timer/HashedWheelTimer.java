@@ -481,6 +481,7 @@ public class HashedWheelTimer implements Timer {
 
         // 将等待任务调度数加1，若等待数量超过最大限制，则减1并抛异常
         long pendingTimeoutsCount = pendingTimeouts.incrementAndGet();
+        // 如果 maxPendingTimeouts <= 0 则不限制接受任务的数量
         if (maxPendingTimeouts > 0 && pendingTimeoutsCount > maxPendingTimeouts) {
             pendingTimeouts.decrementAndGet();
             throw new RejectedExecutionException("Number of pending timeouts ("
@@ -501,6 +502,7 @@ public class HashedWheelTimer implements Timer {
         }
         // 构造一个Timeout，并放入等待任务调度队列中
         HashedWheelTimeout timeout = new HashedWheelTimeout(this, task, deadline);
+        // timeouts 中的任务将在下个 tick 时，被分配到具体的时间槽中
         timeouts.add(timeout);
         return timeout;
     }
@@ -538,31 +540,35 @@ public class HashedWheelTimer implements Timer {
             }
 
             // Notify the other threads waiting for the initialization at start().
-            // 唤醒其他正在等待 startTime 初始化完成的线程
+            // 唤醒其他正在等待 startTime 初始化完成的线程（start()方法）
             startTimeInitialized.countDown();
 
+            // 循环执行，除非时间轮状态不是 WORKER_STATE_STARTED 了
             do {
-                // 等待下一个 tick 的到来
+                // sleep 到下一个 tick
                 final long deadline = waitForNextTick();
                 if (deadline > 0) {
-                    // 计算 tick 锁对应的时间槽的索引
+                    // 计算 tick 对应的时间槽的索引
                     int idx = (int) (tick & mask);
-                    // 处理已取消的任务队列
+                    // 移除已取消的任务
                     processCancelledTasks();
                     // 根据索引获得时间槽
                     HashedWheelBucket bucket =
                             wheel[idx];
-                    // 将待处理任务中的任务数放到它们应该放的槽中
+                    // 将所有待处理任务中的任务数放到它们应该放的槽中
                     transferTimeoutsToBuckets();
+                    // 根据 deadline 执行槽中的所有任务
                     bucket.expireTimeouts(deadline);
                     tick++;
                 }
             } while (WORKER_STATE_UPDATER.get(HashedWheelTimer.this) == WORKER_STATE_STARTED);
 
             // Fill the unprocessedTimeouts so we can return them from stop() method.
+            // 执行到这里说明时间轮被 stop 了，将已分配槽且没有处理完的任务添加到 unprocessedTimeouts，方便调用 stop() 时获取
             for (HashedWheelBucket bucket : wheel) {
                 bucket.clearTimeouts(unprocessedTimeouts);
             }
+            // 将还未分配槽的任务取出并加入到 unprocessedTimeouts，方便调用 stop 方法时获取
             for (; ; ) {
                 HashedWheelTimeout timeout = timeouts.poll();
                 if (timeout == null) {
@@ -572,6 +578,7 @@ public class HashedWheelTimer implements Timer {
                     unprocessedTimeouts.add(timeout);
                 }
             }
+            // 处理已取消的任务，
             processCancelledTasks();
         }
 
@@ -760,6 +767,8 @@ public class HashedWheelTimer implements Timer {
 
         void remove() {
             HashedWheelBucket bucket = this.bucket;
+            // 当前任务已分配给到具体槽：调用槽的 remove 方法
+            // 还未分配到具体槽：等待调度的任务数量 -1
             if (bucket != null) {
                 bucket.remove(this);
             } else {
