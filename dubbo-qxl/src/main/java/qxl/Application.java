@@ -11,13 +11,17 @@ import qxl.service.Robot;
 import qxl.service.impl.Bumblebee;
 import qxl.service.impl.OptimusPrime;
 
+import java.lang.reflect.Modifier;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Application {
 
-    public static void main(String[] args) {
+    public static final int PUBLIC = 0x00000001;
+
+
+    public static void main(String[] args) throws Exception {
 //        ExtensionLoader<Robot> extensionLoader = ExtensionLoader.getExtensionLoader(Robot.class);
 //        Robot bumblebee = extensionLoader.getExtension("Bum");
 //        bumblebee.sayHello();
@@ -33,6 +37,8 @@ public class Application {
 //        Protocol protocol = ExtensionLoader.getExtensionLoader(Protocol.class).getAdaptiveExtension();
 //        org.apache.dubbo.rpc.Protocol extension = ExtensionLoader.getExtensionLoader(org.apache.dubbo.rpc.Protocol.class).getExtension("dubbo");
 //        System.out.println(extension.getClass().getCanonicalName());
+        Class clazz = Class.forName("qxl.service.Robot");
+        System.out.println(Modifier.isPublic(clazz.getModifiers()));
     }
 
 }

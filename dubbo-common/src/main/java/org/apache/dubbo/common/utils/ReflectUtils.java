@@ -395,6 +395,9 @@ public final class ReflectUtils {
 
     /**
      * get method desc.
+     *
+     * 获取方法描述
+     *
      * int do(int arg1) => "do(I)I"
      * void do(String arg1,boolean arg2) => "do(Ljava/lang/String;Z)V"
      *
