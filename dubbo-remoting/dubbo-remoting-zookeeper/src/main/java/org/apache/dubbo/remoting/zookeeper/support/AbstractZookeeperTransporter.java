@@ -52,21 +52,26 @@ public abstract class AbstractZookeeperTransporter implements ZookeeperTransport
     @Override
     public ZookeeperClient connect(URL url) {
         ZookeeperClient zookeeperClient;
+        // 获取所有备用注册中心的地址
         List<String> addressList = getURLBackupAddress(url);
         // The field define the zookeeper server , including protocol, host, port, username, password
+        // 缓存中存在已连接的 zookeeperClient，直接返回
         if ((zookeeperClient = fetchAndUpdateZookeeperClientCache(addressList)) != null && zookeeperClient.isConnected()) {
             logger.info("find valid zookeeper client from the cache for address: " + url);
             return zookeeperClient;
         }
         // avoid creating too many connections， so add lock
+        // 防止建立太多连接，所以加锁
         synchronized (zookeeperClientMap) {
+            // 缓存中存在已连接的 zookeeperClient，直接返回
             if ((zookeeperClient = fetchAndUpdateZookeeperClientCache(addressList)) != null && zookeeperClient.isConnected()) {
                 logger.info("find valid zookeeper client from the cache for address: " + url);
                 return zookeeperClient;
             }
-
+            // 创建新的 zookeeperClient 连接
             zookeeperClient = createZookeeperClient(toClientURL(url));
             logger.info("No valid zookeeper client found from cache, therefore create a new client for url. " + url);
+            // 保存注册中心地址-> zookeeperClient 的映射
             writeToClientMap(addressList, zookeeperClient);
         }
         return zookeeperClient;
@@ -82,6 +87,8 @@ public abstract class AbstractZookeeperTransporter implements ZookeeperTransport
 
     /**
      * get the ZookeeperClient from cache, the ZookeeperClient must be connected.
+     *
+     * 从缓存中获取一个已连接的 zookeeperClient，
      * <p>
      * It is not private method for unit test.
      *
@@ -91,11 +98,13 @@ public abstract class AbstractZookeeperTransporter implements ZookeeperTransport
     ZookeeperClient fetchAndUpdateZookeeperClientCache(List<String> addressList) {
 
         ZookeeperClient zookeeperClient = null;
+        // 遍历注册中心地址，获取第一个已连接的 zookeeperClient
         for (String address : addressList) {
             if ((zookeeperClient = zookeeperClientMap.get(address)) != null && zookeeperClient.isConnected()) {
                 break;
             }
         }
+        // zookeeperClient 不为 null 且已连接，建立所有注册中心地址到这个 zookeeperClient 的映射
         if (zookeeperClient != null && zookeeperClient.isConnected()) {
             writeToClientMap(addressList, zookeeperClient);
         }
@@ -104,6 +113,8 @@ public abstract class AbstractZookeeperTransporter implements ZookeeperTransport
 
     /**
      * get all zookeeper urls (such as :zookeeper://127.0.0.1:2181?127.0.0.1:8989,127.0.0.1:9999)
+     *
+     * 获取所有 zookeeper 服务器地址
      *
      * @param url such as:zookeeper://127.0.0.1:2181?127.0.0.1:8989,127.0.0.1:9999
      * @return such as 127.0.0.1:2181,127.0.0.1:8989,127.0.0.1:9999

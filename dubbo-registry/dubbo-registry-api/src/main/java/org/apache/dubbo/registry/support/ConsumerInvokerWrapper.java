@@ -27,10 +27,25 @@ import org.apache.dubbo.rpc.RpcException;
  * @date 2017/11/23
  */
 public class ConsumerInvokerWrapper<T> implements Invoker {
+    /**
+     * invoker
+     */
     private Invoker<T> invoker;
+    /**
+     * 原始 url
+     */
     private URL originUrl;
+    /**
+     * 注册中心 url
+     */
     private URL registryUrl;
+    /**
+     * 消费者 url
+     */
     private URL consumerUrl;
+    /**
+     * 运维属性，在使用列出消费者和提供者命令后，输出消费者可调用的服务提供者数量
+     */
     private RegistryDirectory registryDirectory;
 
     public ConsumerInvokerWrapper(Invoker<T> invoker, URL registryUrl, URL consumerUrl, RegistryDirectory registryDirectory) {

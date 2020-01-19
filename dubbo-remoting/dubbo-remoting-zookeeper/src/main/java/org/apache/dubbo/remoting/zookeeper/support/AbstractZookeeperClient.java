@@ -126,6 +126,12 @@ public abstract class AbstractZookeeperClient<TargetDataListener, TargetChildLis
         return stateListeners;
     }
 
+    /**
+     * 获得目标路径 path 下的所有 ChildListener 集合
+     * @param path 被监听的节点路径
+     * @param listener 监听器
+     * @return
+     */
     @Override
     public List<String> addChildListener(String path, final ChildListener listener) {
         // 获得目标路径 path 下的所有 ChildListener 集合
@@ -139,11 +145,12 @@ public abstract class AbstractZookeeperClient<TargetDataListener, TargetChildLis
         TargetChildListener targetListener = listeners.get(listener);
         // listener 对应的监听器还不存在
         if (targetListener == null) {
-            // 基于 listener 创建真正的监听器并保存映射 listener -> 真.监听器 的映射
+            // 基于 listener 创建真正的监听器并保存映射 listener -> 真.监听器（CuratorZookeeperClient.CuratorWatcherImpl） 的映射
             listeners.putIfAbsent(listener, createTargetChildListener(path, listener));
             targetListener = listeners.get(listener);
         }
-        // 向 zookeeper 发起真正的订阅
+        // 向 zookeeper 发起真正的监听，当 path 的子节点列表发生变化时，先回调 targetListener 的 process 方法，
+        // 再调用 targetListener 的 childListener 的 childChange 方法
         return addTargetChildListener(path, targetListener);
     }
 

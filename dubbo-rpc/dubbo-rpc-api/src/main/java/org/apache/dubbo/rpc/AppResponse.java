@@ -68,22 +68,27 @@ public class AppResponse extends AbstractResult implements Serializable {
             // fix issue#619
             try {
                 // get Throwable class
+                // 循环，直到 clazz 等于 Throwable
                 Class clazz = exception.getClass();
                 while (!clazz.getName().equals(Throwable.class.getName())) {
                     clazz = clazz.getSuperclass();
                 }
                 // get stackTrace value
+                // 获取 clazz 的 stackTrace 属性
                 Field stackTraceField = clazz.getDeclaredField("stackTrace");
                 stackTraceField.setAccessible(true);
                 Object stackTrace = stackTraceField.get(exception);
+                // stackTrace 为 null 时，设为空数组
                 if (stackTrace == null) {
                     exception.setStackTrace(new StackTraceElement[0]);
                 }
             } catch (Exception e) {
                 // ignore
             }
+            // 抛出异常
             throw exception;
         }
+        // 无异常，返回结果
         return result;
     }
 

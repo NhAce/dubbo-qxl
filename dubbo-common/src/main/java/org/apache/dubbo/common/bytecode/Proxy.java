@@ -69,8 +69,8 @@ public abstract class Proxy {
     /**
      * Get proxy.
      *
-     * @param cl  class loader.
-     * @param ics interface class array.
+     * @param cl  class loader. 类加载器
+     * @param ics interface class array. 接口数组
      * @return Proxy instance.
      */
     public static Proxy getProxy(ClassLoader cl, Class<?>... ics) {
@@ -99,6 +99,7 @@ public abstract class Proxy {
         }
 
         // use interface class name list as key.
+        // 接口名称，多个用 ; 分割
         String key = sb.toString();
 
         // get cache by class loader.

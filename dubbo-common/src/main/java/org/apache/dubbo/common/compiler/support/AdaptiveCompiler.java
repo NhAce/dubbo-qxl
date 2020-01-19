@@ -28,6 +28,10 @@ public class AdaptiveCompiler implements Compiler {
 
     private static volatile String DEFAULT_COMPILER;
 
+    /**
+     * 当配置了 <dubbo:application compiler="xxx" /> 时，被 ApplicationConfig 调用
+     * @param compiler
+     */
     public static void setDefaultCompiler(String compiler) {
         DEFAULT_COMPILER = compiler;
     }
@@ -35,11 +39,14 @@ public class AdaptiveCompiler implements Compiler {
     @Override
     public Class<?> compile(String code, ClassLoader classLoader) {
         Compiler compiler;
+        // 获得 Compiler 接口的 ExtensionLoader 对象
         ExtensionLoader<Compiler> loader = ExtensionLoader.getExtensionLoader(Compiler.class);
         String name = DEFAULT_COMPILER; // copy reference
+        // 根据设置的拓展名，获取 Compiler 实现
         if (name != null && name.length() > 0) {
             compiler = loader.getExtension(name);
         } else {
+            // 获取默认的 Compiler 实现，即 JavassistCompiler
             compiler = loader.getDefaultExtension();
         }
         return compiler.compile(code, classLoader);

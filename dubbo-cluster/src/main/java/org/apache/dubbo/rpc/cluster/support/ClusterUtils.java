@@ -49,14 +49,23 @@ public class ClusterUtils {
     private ClusterUtils() {
     }
 
+    /**
+     *
+     * @param remoteUrl 服务提供者 url
+     * @param localMap 消费端参数配置
+     * @return
+     */
     public static URL mergeUrl(URL remoteUrl, Map<String, String> localMap) {
+
         Map<String, String> map = new HashMap<String, String>();
+        // 服务端参数配置
         Map<String, String> remoteMap = remoteUrl.getParameters();
 
         if (remoteMap != null && remoteMap.size() > 0) {
             map.putAll(remoteMap);
 
             // Remove configurations from provider, some items should be affected by provider.
+            // 移除服务提供者的部分配置，
             map.remove(THREAD_NAME_KEY);
             map.remove(DEFAULT_KEY_PREFIX + THREAD_NAME_KEY);
 
@@ -80,7 +89,9 @@ public class ClusterUtils {
         }
 
         if (localMap != null && localMap.size() > 0) {
+            // 复制消费端参数
             Map<String, String> copyOfLocalMap = new HashMap<>(localMap);
+            // 移除部分配置
             copyOfLocalMap.remove(GROUP_KEY);
             copyOfLocalMap.remove(RELEASE_KEY);
             copyOfLocalMap.remove(DUBBO_VERSION_KEY);
@@ -94,6 +105,7 @@ public class ClusterUtils {
             map.put(REMOTE_APPLICATION_KEY, remoteMap.get(APPLICATION_KEY));
 
             // Combine filters and listeners on Provider and Consumer
+            // 组合提供者和消费者上的过滤器和监听器
             String remoteFilter = remoteMap.get(REFERENCE_FILTER_KEY);
             String localFilter = copyOfLocalMap.get(REFERENCE_FILTER_KEY);
             if (remoteFilter != null && remoteFilter.length() > 0
@@ -107,7 +119,7 @@ public class ClusterUtils {
                 map.put(INVOKER_LISTENER_KEY, remoteListener + "," + localListener);
             }
         }
-
+        // 把服务提供者 url 中的参数设为合并后的参数
         return remoteUrl.clearParameters().addParameters(map);
     }
 

@@ -29,6 +29,8 @@ import static org.apache.dubbo.rpc.Constants.INTERFACES;
 
 /**
  * AbstractProxyFactory
+ *
+ * 实现 ProxyFactory 接口，代理工厂抽象类
  */
 public abstract class AbstractProxyFactory implements ProxyFactory {
 
@@ -40,12 +42,15 @@ public abstract class AbstractProxyFactory implements ProxyFactory {
     @Override
     public <T> T getProxy(Invoker<T> invoker, boolean generic) throws RpcException {
         Class<?>[] interfaces = null;
+        // 获得需要生成代理的接口们
         String config = invoker.getUrl().getParameter(INTERFACES);
         if (config != null && config.length() > 0) {
             String[] types = COMMA_SPLIT_PATTERN.split(config);
             if (types != null && types.length > 0) {
                 interfaces = new Class<?>[types.length + 2];
                 interfaces[0] = invoker.getInterface();
+                // 回声测试，回声测试用于检测服务是否可用，回声测试按照正常请求流程执行，能够测试整个调用是否通畅，可用于监控。
+                // 所有服务自动实现 EchoService 接口，只需将任意服务引用强制转型为 EchoService，即可使用。
                 interfaces[1] = EchoService.class;
                 for (int i = 0; i < types.length; i++) {
                     // TODO can we load successfully for a different classloader?.

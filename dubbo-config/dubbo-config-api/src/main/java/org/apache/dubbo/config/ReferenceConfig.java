@@ -118,6 +118,8 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
     /**
      * The url of the reference service
+     *
+     * 服务引用 URL 数组
      */
     private final List<URL> urls = new ArrayList<URL>();
 
@@ -138,7 +140,10 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
     /**
      * The url for peer-to-peer invocation
+     *
      * 直连服务提供者的地址
+     * 1.可以是注册中心，也可以是服务提供者
+     * 2.可配置多个，使用 ; 分隔
      */
     private String url;
 

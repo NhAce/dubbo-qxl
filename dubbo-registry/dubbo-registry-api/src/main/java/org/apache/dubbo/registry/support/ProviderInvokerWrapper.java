@@ -26,10 +26,25 @@ import org.apache.dubbo.rpc.RpcException;
  * @date 2017/11/23
  */
 public class ProviderInvokerWrapper<T> implements Invoker {
+    /**
+     * Invoker 对象
+     */
     private Invoker<T> invoker;
+    /**
+     * 原始 url
+     */
     private URL originUrl;
+    /**
+     * 注册中心 url
+     */
     private URL registryUrl;
+    /**
+     * 服务提供者 url
+     */
     private URL providerUrl;
+    /**
+     * 是否注册
+     */
     private volatile boolean isReg;
 
     public ProviderInvokerWrapper(Invoker<T> invoker,URL registryUrl,URL providerUrl) {

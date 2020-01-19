@@ -35,12 +35,17 @@ public interface Directory<T> extends Node {
     /**
      * get service type.
      *
+     * 获得服务类型，如 com.alibaba.dubbo.demo.DemoService
+     * 一个 Directory 对应一个服务类型
+     *
      * @return service type.
      */
     Class<T> getInterface();
 
     /**
      * list invokers.
+     *
+     * 获得所有的 Invoker 集合
      *
      * @return invokers
      */

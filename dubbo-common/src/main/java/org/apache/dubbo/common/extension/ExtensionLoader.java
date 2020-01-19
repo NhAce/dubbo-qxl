@@ -473,6 +473,8 @@ public class ExtensionLoader<T> {
 
     /**
      * Return default extension, return <code>null</code> if it's not configured.
+     *
+     * 获得默认的拓展实现类
      */
     public T getDefaultExtension() {
         getExtensionClasses();

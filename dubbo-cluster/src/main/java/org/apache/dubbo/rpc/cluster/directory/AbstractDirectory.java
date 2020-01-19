@@ -38,18 +38,33 @@ import static org.apache.dubbo.common.constants.RegistryConstants.REGISTRY_PROTO
 /**
  * Abstract implementation of Directory: Invoker list returned from this Directory's list method have been filtered by Routers
  *
+ * 实现了 Directory 接口，调用 #{@link #list(Invocation)} 时，回调具体实现类的 #{@link #doList(Invocation)} 方法
+ *
  */
 public abstract class AbstractDirectory<T> implements Directory<T> {
 
     // logger
     private static final Logger logger = LoggerFactory.getLogger(AbstractDirectory.class);
 
+    /**
+     * 注册中心 url
+     */
     private final URL url;
 
+    /**
+     * 是否已经销毁
+     */
     private volatile boolean destroyed = false;
 
+    /**
+     * 消费者 url
+     * 若未显示调用 {@link #AbstractDirectory(URL, URL, RouterChain)} 构造方法，consumerUrl 等于 {@link url}
+     */
     private volatile URL consumerUrl;
 
+    /**
+     * 路由链
+     */
     protected RouterChain<T> routerChain;
 
     public AbstractDirectory(URL url) {
