@@ -51,8 +51,14 @@ public class StubProxyFactoryWrapper implements ProxyFactory {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StubProxyFactoryWrapper.class);
 
+    /**
+     * ProxyFactoryAdaptive 对象
+     */
     private final ProxyFactory proxyFactory;
 
+    /**
+     * ProtocolAdaptive 对象
+     */
     private Protocol protocol;
 
     public StubProxyFactoryWrapper(ProxyFactory proxyFactory) {
@@ -74,10 +80,15 @@ public class StubProxyFactoryWrapper implements ProxyFactory {
         T proxy = proxyFactory.getProxy(invoker);
         if (GenericService.class != invoker.getInterface()) {
             URL url = invoker.getUrl();
+            // 获得 stub 配置项，若 url 中 stub 未配置，则取 local 的配置项
             String stub = url.getParameter(STUB_KEY, url.getParameter(LOCAL_KEY));
+            // url 中配置了 stub 或者 local
             if (ConfigUtils.isNotEmpty(stub)) {
+                // 获得接口类型
                 Class<?> serviceType = invoker.getInterface();
+                // stub 的值是 true 或 default
                 if (ConfigUtils.isDefault(stub)) {
+                    // url 中有 stub 参数，则组装 stub 为 DemoServiceStub，否则组装为 DemoServiceLocal
                     if (url.hasParameter(STUB_KEY)) {
                         stub = serviceType.getName() + "Stub";
                     } else {
@@ -85,12 +96,16 @@ public class StubProxyFactoryWrapper implements ProxyFactory {
                     }
                 }
                 try {
+                    // 创建 DemoServiceStub 或 DemoServiceLocal 类对象
                     Class<?> stubClass = ReflectUtils.forName(stub);
+                    // 校验 stubClass 是否实现了 serviceType
                     if (!serviceType.isAssignableFrom(stubClass)) {
                         throw new IllegalStateException("The stub implementation class " + stubClass.getName() + " not implement interface " + serviceType.getName());
                     }
                     try {
+                        // 获取 stubClass 的构造方法
                         Constructor<?> constructor = ReflectUtils.findConstructor(stubClass, serviceType);
+                        // 创建 stubClass 实例，并把 proxy 注入其中
                         proxy = (T) constructor.newInstance(new Object[]{proxy});
                         //export stub service
                         URLBuilder urlBuilder = URLBuilder.from(url);
